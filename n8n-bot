@@ -1,0 +1,322 @@
+{
+  "name": "Alpaca LIVE Aggressive Momentum Bot (5min) + EOD Flatten",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            { "mode": "everyX", "value": 5, "unit": "minutes" }
+          ]
+        }
+      },
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 240]
+    },
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            { "mode": "everyWeek", "weekday": "MONDAY", "hour": 12, "minute": 55 },
+            { "mode": "everyWeek", "weekday": "TUESDAY", "hour": 12, "minute": 55 },
+            { "mode": "everyWeek", "weekday": "WEDNESDAY", "hour": 12, "minute": 55 },
+            { "mode": "everyWeek", "weekday": "THURSDAY", "hour": 12, "minute": 55 },
+            { "mode": "everyWeek", "weekday": "FRIDAY", "hour": 12, "minute": 55 }
+          ]
+        }
+      },
+      "name": "EOD Flatten (12:55 PST)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 520]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            { "name": "BASE_URL", "value": "https://api.alpaca.markets" },
+            { "name": "ALPACA_KEY", "value": "PASTE_KEY_HERE" },
+            { "name": "ALPACA_SECRET", "value": "PASTE_SECRET_HERE" },
+            {
+              "name": "WATCHLIST",
+              "value": "TSLA,NVDA,AMD,SMCI,PLTR,COIN,MSTR,MARA,RIOT,HOOD,SOFI,RIVN,LCID,NIO,GME,AMC,UPST,AFRM,CVNA,SHOP,SQ,PYPL,ROKU,SNAP,DKNG,UBER,LYFT,NET,CRWD,DDOG,MDB,SNOW,PATH,IONQ,AI,BBAI,S,APP,TTD,SPOT,ARM,AVGO,MU,MRNA,BE,FSLR,ENPH,RUN,NOVA,CHPT"
+            }
+          ],
+          "number": [
+            { "name": "MAX_POSITIONS", "value": 6 },
+            { "name": "RISK_PER_TRADE_PCT", "value": 2.5 },
+            { "name": "DAILY_DRAWDOWN_LIMIT_PCT", "value": 4 },
+            { "name": "BREAKOUT_LOOKBACK", "value": 20 },
+            { "name": "EMA_FAST", "value": 9 },
+            { "name": "EMA_SLOW", "value": 21 },
+            { "name": "ATR_PERIOD", "value": 14 },
+            { "name": "STOP_LOSS_ATR_MULT", "value": 2 },
+            { "name": "TAKE_PROFIT_ATR_MULT", "value": 3 },
+            { "name": "REL_VOL_MULT", "value": 1.5 }
+          ]
+        },
+        "options": {}
+      },
+      "name": "CONFIG (edit me)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [520, 240]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$json.BASE_URL}}/v2/clock",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "APCA-API-KEY-ID", "value": "={{$json.ALPACA_KEY}}" },
+            { "name": "APCA-API-SECRET-KEY", "value": "={{$json.ALPACA_SECRET}}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "name": "Get Market Clock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [780, 240]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{$json.is_open}}", "value2": true }
+          ]
+        }
+      },
+      "name": "Market Open?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1020, 240]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$node[\"CONFIG (edit me)\"].json.BASE_URL}}/v2/account",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "APCA-API-KEY-ID", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_KEY}}" },
+            { "name": "APCA-API-SECRET-KEY", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_SECRET}}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "name": "Get Account",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 120]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$node[\"CONFIG (edit me)\"].json.BASE_URL}}/v2/positions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "APCA-API-KEY-ID", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_KEY}}" },
+            { "name": "APCA-API-SECRET-KEY", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_SECRET}}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "name": "Get Positions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 360]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$node[\"CONFIG (edit me)\"].json.BASE_URL}}/v2/stocks/SPY/bars?timeframe=5Min&limit=200",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "APCA-API-KEY-ID", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_KEY}}" },
+            { "name": "APCA-API-SECRET-KEY", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_SECRET}}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "name": "Fetch SPY Bars (Regime)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1250, 600]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $node['CONFIG (edit me)'].json;\nconst account = $node['Get Account'].json;\nconst positions = Array.isArray($node['Get Positions'].json) ? $node['Get Positions'].json : [];\n\n// Daily drawdown proxy (equity vs last_equity)\nconst equity = Number(account.equity || 0);\nconst lastEquity = Number(account.last_equity || equity);\nconst ddPct = lastEquity > 0 ? ((lastEquity - equity) / lastEquity) * 100 : 0;\n\n// Market regime: SPY fast EMA > slow EMA\nfunction ema(values, period) {\n  const k = 2 / (period + 1);\n  let e = values[0];\n  for (let i = 1; i < values.length; i++) e = values[i] * k + e * (1 - k);\n  return e;\n}\n\nconst spyResp = $node['Fetch SPY Bars (Regime)'].json;\nconst spyBars = spyResp.bars || spyResp || [];\nlet regimeLong = true;\nif (Array.isArray(spyBars) && spyBars.length > (cfg.EMA_SLOW + 20)) {\n  const closes = spyBars.map(b => b.c);\n  const fast = ema(closes.slice(-120), cfg.EMA_FAST);\n  const slow = ema(closes.slice(-160), cfg.EMA_SLOW);\n  regimeLong = fast > slow;\n}\n\nif (ddPct >= cfg.DAILY_DRAWDOWN_LIMIT_PCT) {\n  return [{ halted: true, reason: `Daily drawdown ${ddPct.toFixed(2)}% >= limit ${cfg.DAILY_DRAWDOWN_LIMIT_PCT}%`, regimeLong, equity, ddPct, cfg }];\n}\n\nconst held = new Set(positions.map(p => p.symbol));\nconst openSlots = Math.max(0, cfg.MAX_POSITIONS - held.size);\n\nreturn [{ halted: false, reason: null, regimeLong, equity, ddPct, held: Array.from(held), openSlots, cfg }];"
+      },
+      "name": "Risk + Regime Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1500, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            { "value1": "={{$json.halted}}", "value2": false }
+          ]
+        }
+      },
+      "name": "Not Halted?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1740, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "const { cfg, held, openSlots, equity, regimeLong } = $json;\nconst symbols = cfg.WATCHLIST.split(',').map(s => s.trim()).filter(Boolean);\nreturn symbols.map(symbol => ({ symbol, cfg, held, openSlots, equity, regimeLong }));"
+      },
+      "name": "Create Symbol Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 360]
+    },
+    {
+      "parameters": {
+        "batchSize": 6,
+        "options": {}
+      },
+      "name": "Split Symbols (6)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2210, 360]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$node[\"CONFIG (edit me)\"].json.BASE_URL}}/v2/stocks/{{$json.symbol}}/bars?timeframe=5Min&limit={{$json.cfg.BREAKOUT_LOOKBACK + 80}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "APCA-API-KEY-ID", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_KEY}}" },
+            { "name": "APCA-API-SECRET-KEY", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_SECRET}}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "name": "Fetch 5Min Bars (Symbol)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2450, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "function ema(values, period) {\n  const k = 2 / (period + 1);\n  let e = values[0];\n  for (let i = 1; i < values.length; i++) e = values[i] * k + e * (1 - k);\n  return e;\n}\n\nfunction atr(bars, period) {\n  const trs = [];\n  for (let i = 1; i < bars.length; i++) {\n    const h = bars[i].h, l = bars[i].l, pc = bars[i-1].c;\n    const tr = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));\n    trs.push(tr);\n  }\n  if (trs.length < period) return null;\n  let a = trs.slice(0, period).reduce((s,x)=>s+x,0) / period;\n  for (let i = period; i < trs.length; i++) a = (a*(period-1) + trs[i]) / period;\n  return a;\n}\n\nconst symItem = $item(0).$node['Split Symbols (6)'].json;\nconst { symbol, cfg, held, openSlots, equity, regimeLong } = symItem;\n\nconst resp = $json;\nconst bars = resp.bars || resp || [];\n\nif (!regimeLong) {\n  return [{ symbol, signal: 'NONE', reason: 'Market regime not long (SPY EMA filter)', order: null }];\n}\n\nif (!Array.isArray(bars) || bars.length < (cfg.BREAKOUT_LOOKBACK + cfg.EMA_SLOW + 10)) {\n  return [{ symbol, signal: 'NONE', reason: 'Not enough bars', order: null }];\n}\n\n// Relative volume filter: current volume vs avg last 20\nconst vols = bars.map(b => b.v);\nconst currentVol = vols[vols.length - 1];\nconst avgVol20 = vols.slice(-21, -1).reduce((s,x)=>s+x,0) / 20;\nconst relVol = avgVol20 > 0 ? currentVol / avgVol20 : 0;\nif (relVol < cfg.REL_VOL_MULT) {\n  return [{ symbol, signal: 'NONE', reason: `RelVol ${relVol.toFixed(2)} < ${cfg.REL_VOL_MULT}`, order: null }];\n}\n\nconst closes = bars.map(b => b.c);\nconst fastEma = ema(closes.slice(-120), cfg.EMA_FAST);\nconst slowEma = ema(closes.slice(-160), cfg.EMA_SLOW);\n\nconst lookback = cfg.BREAKOUT_LOOKBACK;\nconst recent = bars.slice(-(lookback + 1));\nconst current = recent[recent.length - 1];\nconst prev = recent.slice(0, -1);\nconst highestHigh = Math.max(...prev.map(b => b.h));\n\nconst a = atr(bars.slice(-(cfg.ATR_PERIOD + 60)), cfg.ATR_PERIOD);\nif (!a || a <= 0) {\n  return [{ symbol, signal: 'NONE', reason: 'ATR unavailable', order: null }];\n}\n\nconst trendOk = fastEma > slowEma;\nconst breakoutOk = current.c > highestHigh;\nconst canOpen = openSlots > 0 && !held.includes(symbol);\n\nif (!(trendOk && breakoutOk && canOpen)) {\n  return [{ symbol, signal: 'NONE', reason: `trendOk=${trendOk} breakoutOk=${breakoutOk} canOpen=${canOpen}`, order: null }];\n}\n\nconst riskDollars = (cfg.RISK_PER_TRADE_PCT / 100) * equity;\nconst stopDist = cfg.STOP_LOSS_ATR_MULT * a;\nconst qty = Math.max(1, Math.floor(riskDollars / stopDist));\n\nconst stopPrice = (current.c - stopDist);\nconst takeProfit = (current.c + cfg.TAKE_PROFIT_ATR_MULT * a);\n\nconst order = {\n  symbol,\n  qty: String(qty),\n  side: 'buy',\n  type: 'market',\n  time_in_force: 'day',\n  order_class: 'bracket',\n  take_profit: { limit_price: takeProfit.toFixed(2) },\n  stop_loss: { stop_price: stopPrice.toFixed(2) }\n};\n\nreturn [{ symbol, signal: 'BUY', reason: `Breakout+EMA+RelVol(${relVol.toFixed(2)})`, order }];"
+      },
+      "name": "Signal + Bracket Order",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2690, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            { "value1": "={{$json.signal}}", "operation": "equal", "value2": "BUY" }
+          ]
+        }
+      },
+      "name": "Signal is BUY?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2920, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"CONFIG (edit me)\"].json.BASE_URL}}/v2/orders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "APCA-API-KEY-ID", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_KEY}}" },
+            { "name": "APCA-API-SECRET-KEY", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_SECRET}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{$json.order}}",
+        "options": { "timeout": 60000 }
+      },
+      "name": "Place LIVE Bracket Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [3150, 360]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{$node[\"CONFIG (edit me)\"].json.BASE_URL}}/v2/positions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "APCA-API-KEY-ID", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_KEY}}" },
+            { "name": "APCA-API-SECRET-KEY", "value": "={{$node[\"CONFIG (edit me)\"].json.ALPACA_SECRET}}" }
+          ]
+        },
+        "options": { "timeout": 60000 }
+      },
+      "name": "EOD Close ALL Positions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [780, 520]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [[{ "node": "CONFIG (edit me)", "type": "main", "index": 0 }]]
+    },
+    "CONFIG (edit me)": {
+      "main": [[{ "node": "Get Market Clock", "type": "main", "index": 0 }]]
+    },
+    "Get Market Clock": {
+      "main": [[{ "node": "Market Open?", "type": "main", "index": 0 }]]
+    },
+    "Market Open?": {
+      "main": [[{ "node": "Get Account", "type": "main", "index": 0 }], []]
+    },
+    "Get Account": {
+      "main": [[{ "node": "Get Positions", "type": "main", "index": 0 }]]
+    },
+    "Get Positions": {
+      "main": [[{ "node": "Fetch SPY Bars (Regime)", "type": "main", "index": 0 }]]
+    },
+    "Fetch SPY Bars (Regime)": {
+      "main": [[{ "node": "Risk + Regime Gate", "type": "main", "index": 0 }]]
+    },
+    "Risk + Regime Gate": {
+      "main": [[{ "node": "Not Halted?", "type": "main", "index": 0 }]]
+    },
+    "Not Halted?": {
+      "main": [[{ "node": "Create Symbol Items", "type": "main", "index": 0 }], []]
+    },
+    "Create Symbol Items": {
+      "main": [[{ "node": "Split Symbols (6)", "type": "main", "index": 0 }]]
+    },
+    "Split Symbols (6)": {
+      "main": [[{ "node": "Fetch 5Min Bars (Symbol)", "type": "main", "index": 0 }]]
+    },
+    "Fetch 5Min Bars (Symbol)": {
+      "main": [[{ "node": "Signal + Bracket Order", "type": "main", "index": 0 }]]
+    },
+    "Signal + Bracket Order": {
+      "main": [[{ "node": "Signal is BUY?", "type": "main", "index": 0 }]]
+    },
+    "Signal is BUY?": {
+      "main": [[{ "node": "Place LIVE Bracket Order", "type": "main", "index": 0 }], []]
+    },
+    "EOD Flatten (12:55 PST)": {
+      "main": [[{ "node": "EOD Close ALL Positions", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "versionId": "1"
+}
